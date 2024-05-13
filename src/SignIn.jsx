@@ -1,4 +1,5 @@
-import * as React from 'react';
+// import * as React from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -12,6 +13,10 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import AuthContext from './context/AuthProvider';
+import axios from './api/axios';
+
+const LOGIN_URL = '/token';
 
 function Copyright(props) {
   return (
@@ -31,13 +36,86 @@ function Copyright(props) {
 const defaultTheme = createTheme();
 
 export default function SignIn() {
-  const handleSubmit = (event) => {
+  const { setAuth } = useContext(AuthContext);
+  const userRef = useRef();
+  const errRef = useRef();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errMsg, setErrMsg] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    userRef.current.focus();
+  }, []);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+
     console.log({
       email: data.get('email'),
       password: data.get('password'),
     });
+
+    const formData = new FormData();
+    formData.append('username', data.get('email'));
+    formData.append('password', data.get('password'));
+
+    try {
+      // axios.post(LOGIN_URL, {
+      //   username: data.get('email'),
+      //   password: data.get('password'),
+      // }).then((response) => {
+      //   console.log(response);
+      //   setAuth(true);
+      // }).catch((error) => {
+      //   console.log(error);
+      //   setErrMsg('Invalid credentials');
+      // });
+
+      // const response = await axios.post(LOGIN_URL, {
+      //   username: data.get('email'),
+      //   password: data.get('password'),
+      // },
+      // {
+      //   headers: {
+      //     'Content-Type': 'application/x-www-form-urlencoded',
+      //   },
+      //   withCredentials: true,
+      // });
+
+      const response = await axios.post(LOGIN_URL, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        withCredentials: true,
+      });
+
+      console.log("response", JSON.stringify(response?.data));
+      // console.log("response", JSON.stringify(response));
+      const accessToken = response?.data?.access_token;
+      setAuth({
+        username: data.get('email'),
+        password: data.get('password'),
+        accessToken,
+      });
+      setEmail('');
+      setPassword('');
+      setSuccess(true);
+
+    } catch (error) {
+      if (!error?.response) {
+        setErrMsg('No server response');
+      } else if (error?.response?.status === 400) {
+        setErrMsg('Missing username or password');
+      } else if (error?.response?.status === 401) {
+        setErrMsg('Invalid credentials or Unauthorized');
+      } else {
+        setErrMsg('Login failed');
+      }
+      errRef.current.focus();
+    }
   };
 
   return (
@@ -68,6 +146,7 @@ export default function SignIn() {
               name="email"
               autoComplete="email"
               autoFocus
+              ref={userRef}
             />
             <TextField
               margin="normal"
